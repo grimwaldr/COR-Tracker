@@ -8,7 +8,7 @@ This rewrite preserves the roll data and intended behavior of the original addon
 while replacing the legacy Ashita event / memory / action packet APIs with Ashita v4 APIs.
 --]]
 
-addon.name      = 'rolltracker';
+addon.name      = 'cortracker';
 addon.author    = 'Original Author: Daniel_H / Ashita v4 rewrite by Artoo';
 addon.version   = '2.3.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
@@ -714,7 +714,7 @@ local function get_roll_enhancement_for_actor(actor_id)
 
     -- We cannot inspect another player's Roll+ equipment from these packets.
     -- Default external CORs to Roll+0; users can override this explicitly with
-    -- /rt rollplus 0|1|2 when the caster's equipment tier is known.
+    -- /ct rollplus 0|1|2 when the caster's equipment tier is known.
     if settings.phantom_roll_plus_override ~= nil then
         return settings.phantom_roll_plus_override;
     end
@@ -824,11 +824,11 @@ end
 -- --------------------------------------------------------------------------
 -- Events
 -- --------------------------------------------------------------------------
-ashita.events.register('load', 'rolltracker_load_cb', function()
-    print_message(('v%s loaded.  /rolltracker help'):fmt(addon.version));
+ashita.events.register('load', 'cortracker_load_cb', function()
+    print_message(('v%s loaded.  /cortracker help'):fmt(addon.version));
 end);
 
-ashita.events.register('packet_in', 'rolltracker_packet_in_cb', function(e)
+ashita.events.register('packet_in', 'cortracker_packet_in_cb', function(e)
     if e.id == 0x63 then
         local ok, err = pcall(handle_buff_timer_packet, e);
         if not ok then
@@ -895,11 +895,11 @@ ashita.events.register('packet_in', 'rolltracker_packet_in_cb', function(e)
     end
 end);
 
-ashita.events.register('d3d_present', 'rolltracker_ui_present_cb', function()
+ashita.events.register('d3d_present', 'cortracker_ui_present_cb', function()
     ui.render(get_active_roll_list());
 end);
 
-ashita.events.register('text_in', 'rolltracker_text_in_cb', function(e)
+ashita.events.register('text_in', 'cortracker_text_in_cb', function(e)
     if not settings.suppress_default_roll_text or e.message == nil then
         return;
     end
@@ -911,7 +911,7 @@ ashita.events.register('text_in', 'rolltracker_text_in_cb', function(e)
     end
 end);
 
-ashita.events.register('command', 'rolltracker_command_cb', function(e)
+ashita.events.register('command', 'cortracker_command_cb', function(e)
     local args = e.command:args();
     if #args == 0 then
         return;
@@ -919,15 +919,15 @@ ashita.events.register('command', 'rolltracker_command_cb', function(e)
 
     local command = args[1]:lower();
 
-    -- /rtracker is deliberately just a compact HUD show/hide command.
-    if command == '/rtracker' then
+    -- /ctracker is deliberately just a compact HUD show/hide command.
+    if command == '/ctracker' then
         e.blocked = true;
         local visible = ui.toggle();
         print_message('UI: ' .. (visible and 'ON' or 'OFF'));
         return;
     end
 
-    if command ~= '/rolltracker' and command ~= '/rt' then
+    if command ~= '/cortracker' and command ~= '/ct' then
         return;
     end
 
@@ -960,7 +960,7 @@ ashita.events.register('command', 'rolltracker_command_cb', function(e)
         else
             local tier = tonumber(value);
             if tier == nil or tier < 0 or tier > 2 or math.floor(tier) ~= tier then
-                print_message('Usage: /rolltracker rollplus auto|0|1|2');
+                print_message('Usage: /cortracker rollplus auto|0|1|2');
             else
                 settings.phantom_roll_plus_override = tier;
                 print_message(('Phantom Roll equipment tier override: +%d'):fmt(tier));
@@ -987,13 +987,13 @@ ashita.events.register('command', 'rolltracker_command_cb', function(e)
             is_local_player_cor() and 'party' or 'self'
         ));
     else
-        print_message('/rolltracker lucky [on|off]');
-        print_message('/rolltracker suppress [on|off]');
-        print_message('/rolltracker debug [on|off]');
-        print_message('/rolltracker rollplus auto|0|1|2');
-        print_message('/rolltracker [on|off]');
-        print_message('/rolltracker ui - toggle condensed/large layout');
-        print_message('/rtracker  - toggle roll UI visibility');
-        print_message('/rolltracker status');
+        print_message('/cortracker lucky [on|off]');
+        print_message('/cortracker suppress [on|off]');
+        print_message('/cortracker debug [on|off]');
+        print_message('/cortracker rollplus auto|0|1|2');
+        print_message('/cortracker [on|off]');
+        print_message('/cortracker ui - toggle condensed/large layout');
+        print_message('/ctracker  - toggle roll UI visibility');
+        print_message('/cortracker status');
     end
 end);

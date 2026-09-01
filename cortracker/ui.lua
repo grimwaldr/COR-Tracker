@@ -191,7 +191,7 @@ function ui.render(active_rolls)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 7 });
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 4 });
 
-    local draw = imgui.Begin('Cor Tracker##CorTrackerHud', ui.state.open, flags);
+    local draw = imgui.Begin('COR Tracker##CORTrackerHud', ui.state.open, flags);
 
     if not ui.state.open[1] then
         ui.set_visible(false);

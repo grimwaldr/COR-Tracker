@@ -1,5 +1,5 @@
--- RollTracker persistent UI settings.
--- Saved under Ashita's config/addons/rolltracker directory
+-- CorTracker persistent UI settings.
+-- Saved under Ashita's config/addons/cortracker directory
 
 local settings = {};
 
@@ -13,7 +13,7 @@ local state = {
     ui_layout = defaults.ui_layout,
 };
 
-local config_directory = ('%sconfig\\addons\\rolltracker\\'):fmt(AshitaCore:GetInstallPath());
+local config_directory = ('%sconfig\\addons\\cortracker\\'):fmt(AshitaCore:GetInstallPath());
 local config_path = config_directory .. 'settings.lua';
 
 local function ensure_directory(path)

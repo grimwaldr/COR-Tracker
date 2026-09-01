@@ -1,4 +1,4 @@
--- RollTracker 2.2 UI
+-- CorTracker 2.2 UI
 -- Switchable compact / expanded ImGui display for active Phantom Rolls.
 
 local imgui = require('imgui');
@@ -191,7 +191,7 @@ function ui.render(active_rolls)
     imgui.PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 7 });
     imgui.PushStyleVar(ImGuiStyleVar_ItemSpacing, { 7, 4 });
 
-    local draw = imgui.Begin('Roll Tracker##RollTrackerHud', ui.state.open, flags);
+    local draw = imgui.Begin('Cor Tracker##CorTrackerHud', ui.state.open, flags);
 
     if not ui.state.open[1] then
         ui.set_visible(false);

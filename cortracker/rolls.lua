@@ -23,7 +23,7 @@ return {
     },
     
     ['Chaos Roll'] = {
-        lucky=4, unlucky=8, desc='Attack', percent=true values={
+        lucky=4, unlucky=8, desc='Attack', percent=true, values={
             [0]={6.3,7.8,9.4,25,10.9,12.5,15.6,3.1,17.2,18.8,31.2},
         }, bust=10,
     },
@@ -100,7 +100,7 @@ return {
         }, bust=15,
     },
     ['Gallant\'s Roll'] = {
-        lucky=3, unlucky=7, desc='Reflects Damage', percent=true values={
+        lucky=3, unlucky=7, desc='Reflects Damage', percent=true, values={
             [0]={4,5,15,6,7,8,3,9,10,12,20},
         }, bust=10,
     },

@@ -1,5 +1,5 @@
 --[[
-CorTracker
+RollTracker - Ashita v4 port / rewrite
 
 Original RollTracker copyright Daniel_H and contributors.
 Original source distributed under the BSD 3-Clause license.
@@ -9,8 +9,8 @@ while replacing the legacy Ashita event / memory / action packet APIs with Ashit
 --]]
 
 addon.name      = 'cortracker';
-addon.author    = 'Original Author: Daniel_H / Ashita v4 rewrite by Artoo, Classic version by Grimwald';
-addon.version   = '1.0.0';
+addon.author    = 'Original Author: Daniel_H / Ashita v4 rewrite by Artoo';
+addon.version   = '2.3.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');

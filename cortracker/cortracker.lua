@@ -1,5 +1,5 @@
 --[[
-CorTracker
+COR Tracker
 
 Original RollTracker copyright Daniel_H and contributors.
 Original source distributed under the BSD 3-Clause license.

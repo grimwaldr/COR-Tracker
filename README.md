@@ -25,7 +25,7 @@ Originally created by Daniel_H, this version has been rewritten for Ashita v4 an
 - `/rt debug on|off` - Toggle debug output.
 
 **Original RollTracker:** Daniel_H and contributors  
-**Ashita v4 / HorizonXI rewrite:** Artoo
+**Ashita v4 / HorizonXI rewrite:** Artoo   
 **Classic XI / Phoenix XI fork:** Grimwald
 
 

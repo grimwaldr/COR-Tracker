@@ -9,7 +9,7 @@ while replacing the legacy Ashita event / memory / action packet APIs with Ashit
 --]]
 
 addon.name      = 'cortracker';
-addon.author    = 'Original Author: Daniel_H / Ashita v4 rewrite by Artoo, Classic version by Grimwald';
+addon.author    = 'Daniel_H (Roll Tracker), Artoo (v4 rewrite), and Grimwald (Classic)';
 addon.version   = '1.0.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 

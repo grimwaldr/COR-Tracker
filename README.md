@@ -27,7 +27,7 @@ Renamed to COR Tracker to avoid confusion with its HXI counterpart Roll Tracker.
 - `/ct debug on|off` - Toggle debug output.
 
 **Original RollTracker:** Daniel_H and contributors  
-**Ashita v4 / HorizonXI rewrite:** Artoo
+**Ashita v4 / HorizonXI rewrite:** Artoo   
 **Classic XI / Phoenix XI fork:** Grimwald
 
 

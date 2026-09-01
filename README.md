@@ -39,8 +39,7 @@ This version is based on the original RollTracker addon and retains its original
 <img width="561" height="51" alt="image" src="https://github.com/user-attachments/assets/4695b4b9-1b58-46dd-ae60-35aab26af788" />
 
 
-### UI
+### UI // Layout 1
 <img width="335" height="75" alt="image" src="https://github.com/user-attachments/assets/0334db57-499f-4f2f-8e80-500cb7deaf7c" />
-
-
+### UI // Layout 2
 <img width="209" height="169" alt="image" src="https://github.com/user-attachments/assets/36bfb48f-9f29-4cb2-b76f-6af5e1728f6d" />

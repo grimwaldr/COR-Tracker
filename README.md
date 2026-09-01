@@ -1,10 +1,10 @@
-# Corsair RollTracker
+# Corsair Tracker
 
-RollTracker is an Ashita v4 addon for Final Fantasy XI that tracks and displays Corsair Phantom Rolls.
+COR Tracker is an Ashita v4 addon for Final Fantasy XI that tracks and displays Corsair Phantom Rolls.
 
-Originally created by Daniel_H, this version has been rewritten for Ashita v4 and was updated by Appotemmis/Artoo. COR Tracker is for classic FFXI, or the Phoenix XI server.
+Originally created by Daniel_H, this version has been rewritten for Ashita v4 and was updated by Appotemmis. COR Tracker is for classic FFXI, or the Phoenix XI server.
 
-Renamed to COR Tracker to avoid confusion with its HXI counterpart.
+Renamed to COR Tracker to avoid confusion with its HXI counterpart Roll Tracker.
 
 ## Features
 
@@ -27,7 +27,7 @@ Renamed to COR Tracker to avoid confusion with its HXI counterpart.
 - `/rt debug on|off` - Toggle debug output.
 
 **Original RollTracker:** Daniel_H and contributors  
-**Ashita v4 / HorizonXI rewrite:** Artoo   
+**Ashita v4 / HorizonXI rewrite:** Appotemmis 
 **Classic XI / Phoenix XI fork:** Grimwald
 
 

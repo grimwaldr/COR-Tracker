@@ -26,7 +26,7 @@ Originally created by Daniel_H, this version has been rewritten for Ashita v4 an
 
 **Original RollTracker:** Daniel_H and contributors  
 **Ashita v4 / HorizonXI rewrite:** Artoo
-Classic XI / Phoenix XI fork: Grimwald
+**Classic XI / Phoenix XI fork:** Grimwald
 
 
 This version is based on the original RollTracker addon and retains its original BSD 3-Clause licensing.

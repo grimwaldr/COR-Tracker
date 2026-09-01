@@ -17,14 +17,14 @@ Renamed to COR Tracker to avoid confusion with its HXI counterpart Roll Tracker.
 
 ## Commands
 
-- `/rt on` - Show the HUD.
-- `/rt off` - Hide the HUD.
-- `/rt ui` - Switch between Condensed and Large layouts.
-- `/rtracker` - Toggle the HUD.
-- `/rt lucky on|off` - Show or hide Lucky/Unlucky roll numbers.
-- `/rt suppress on|off` - Toggle suppression of the game's normal roll messages.
-- `/rt status` - Show current settings.
-- `/rt debug on|off` - Toggle debug output.
+- `/ct on` - Show the HUD.
+- `/ct off` - Hide the HUD.
+- `/ct ui` - Switch between Condensed and Large layouts.
+- `/ctracker` - Toggle the HUD.
+- `/ct lucky on|off` - Show or hide Lucky/Unlucky roll numbers.
+- `/ct suppress on|off` - Toggle suppression of the game's normal roll messages.
+- `/ct status` - Show current settings.
+- `/ct debug on|off` - Toggle debug output.
 
 **Original RollTracker:** Daniel_H and contributors  
 **Ashita v4 / HorizonXI rewrite:** Artoo

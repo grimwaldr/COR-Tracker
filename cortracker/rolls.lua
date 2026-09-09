@@ -3,7 +3,7 @@
 
 return {
     ['Corsair\'s Roll'] = {
-        lucky=5, unlucky=9, desc='Experience / Capacity Points', percent=true, values={
+        lucky=5, unlucky=9, desc='Experience / Limit Points', percent=true, values={
             [0]={10,11,11,12,20,13,15,16,8,17,24},
         },
         bust=6,

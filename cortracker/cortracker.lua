@@ -10,7 +10,7 @@ while replacing the legacy Ashita event / memory / action packet APIs with Ashit
 
 addon.name      = 'cortracker';
 addon.author    = 'Daniel_H (Roll Tracker), Artoo (v4 rewrite), and Grimwald (Classic)';
-addon.version   = '1.0.0';
+addon.version   = '1.0.1';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');
@@ -204,6 +204,8 @@ local chat_colour_normal = '\31\159';
 local chat_colour_lucky = '\31\204';
 local chat_colour_unlucky = '\31\002';
 local chat_colour_bust = '\31\039';
+-- Confirmed via /cortracker colors scan: 037 renders as gold/yellow.
+local chat_colour_eleven = '\31\037';
 
 local function print_message(message)
     AshitaCore:GetChatManager():AddChatMessage(159, false, chat_prefix .. message);
@@ -803,6 +805,8 @@ local function format_roll(packet)
     local state = '';
     if total > 11 then
         state = ' ' .. chat_colour_bust .. '(Bust!)' .. chat_colour_normal;
+    elseif total == 11 then
+        state = ' ' .. chat_colour_eleven .. '(Eleven!)' .. chat_colour_normal;
     elseif total == data.lucky then
         state = ' ' .. chat_colour_lucky .. '(Lucky!)' .. chat_colour_normal;
     elseif total == data.unlucky then

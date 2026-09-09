@@ -200,7 +200,6 @@ local chat_colour_normal = '\31\159';
 local chat_colour_lucky = '\31\204';
 local chat_colour_unlucky = '\31\002';
 local chat_colour_bust = '\31\039';
--- Confirmed via /cortracker colors scan: 037 renders as gold/yellow.
 local chat_colour_eleven = '\31\037';
 
 local function print_message(message)

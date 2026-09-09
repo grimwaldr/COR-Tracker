@@ -1,4 +1,4 @@
--- RollTracker Classic XI / Phoenix XI roll data
+-- Classic XI / Phoenix XI roll data
 
 
 return {

@@ -10,7 +10,7 @@ while replacing the legacy Ashita event / memory / action packet APIs with Ashit
 
 addon.name      = 'cortracker';
 addon.author    = 'Daniel_H (Roll Tracker), Artoo (v4 rewrite), and Grimwald (Classic)';
-addon.version   = '1.0.1';
+addon.version   = '1.0.2';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');
@@ -24,10 +24,6 @@ local settings = {
     show_lucky_unlucky_numbers = false,
     suppress_default_roll_text = true,
     debug = false,
-
-    -- Automatic Horizon Phantom Roll+ gear detection.
-    phantom_roll_plus_override = nil,
-
 };
 
 -- Prevent the same roll action packet being printed more than once.
@@ -260,58 +256,6 @@ local function resolve_target_name(server_id)
     return get_party_name_by_server_id(server_id)
         or get_entity_name_by_server_id(server_id)
         or ('ID:%u'):fmt(server_id);
-end
-
--- Horizon Phantom Roll+ values are explicit data tiers in rolls.lua.
-local phantom_roll_plus_legs = {
-    [15601] = 1, -- Corsair's Culottes
-    [16348] = 1, -- Corsair's Culottes +1
-};
-
-local phantom_roll_plus_right_ear = {
-    [26114] = 1,
-    [26115] = 1,
-};
-
-local function get_equipped_item_id(slot)
-    local inventory = AshitaCore:GetMemoryManager():GetInventory();
-    if inventory == nil then
-        return 0;
-    end
-
-    local equipped = inventory:GetEquippedItem(slot);
-    if equipped == nil or equipped.Index == nil then
-        return 0;
-    end
-
-    local index = bit.band(equipped.Index, 0x00FF);
-    if index == 0 then
-        return 0;
-    end
-
-    local container = bit.rshift(bit.band(equipped.Index, 0xFF00), 8);
-    local item = inventory:GetContainerItem(container, index);
-    if item == nil or item.Id == nil then
-        return 0;
-    end
-
-    return item.Id;
-end
-
-local function get_roll_enhancement()
-    if settings.phantom_roll_plus_override ~= nil then
-        return settings.phantom_roll_plus_override;
-    end
-
-    -- Ashita equipment slot 7 = legs, slot 12 = right ear (Ear2 / R.ear).
-    local legs_id = get_equipped_item_id(7);
-    local right_ear_id = get_equipped_item_id(12);
-
-    local enhancement = 0;
-    enhancement = enhancement + (phantom_roll_plus_legs[legs_id] or 0);
-    enhancement = enhancement + (phantom_roll_plus_right_ear[right_ear_id] or 0);
-
-    return math.min(enhancement, 2);
 end
 
 local function get_real_time()
@@ -682,7 +626,7 @@ local function get_roll_total(packet)
     return nil;
 end
 
-local function get_effect_text(data, total, enhancement)
+local function get_effect_text(data, total)
     local effect_text = 'Unknown';
 
     if total > 11 then
@@ -694,8 +638,7 @@ local function get_effect_text(data, total, enhancement)
             effect_text = ('-%s%s %s'):fmt(round_number(bust_value), suffix, data.desc);
         end
     else
-        local tier_values = data.values[enhancement] or data.values[0];
-        local value = tier_values and tier_values[total] or nil;
+        local value = data.values[0] and data.values[0][total] or nil;
 
         if type(value) == 'table' then
             effect_text = ('+%s Regain / +%s Regen'):fmt(round_number(value[1]), round_number(value[2]));
@@ -706,22 +649,6 @@ local function get_effect_text(data, total, enhancement)
     end
 
     return effect_text;
-end
-
-local function get_roll_enhancement_for_actor(actor_id)
-    local player_id = get_player_server_id();
-    if actor_id == player_id then
-        return get_roll_enhancement();
-    end
-
-    -- We cannot inspect another player's Roll+ equipment from these packets.
-    -- Default external CORs to Roll+0; users can override this explicitly with
-    -- /ct rollplus 0|1|2 when the caster's equipment tier is known.
-    if settings.phantom_roll_plus_override ~= nil then
-        return settings.phantom_roll_plus_override;
-    end
-
-    return 0;
 end
 
 local function update_active_roll(packet, player_id)
@@ -739,8 +666,7 @@ local function update_active_roll(packet, player_id)
         return false;
     end
 
-    local enhancement = get_roll_enhancement_for_actor(packet.user_id);
-    local effect_text = get_effect_text(data, total, enhancement);
+    local effect_text = get_effect_text(data, total);
     local now = os.clock();
     local entry = get_or_create_roll(buff_id, roll_name);
     local tracked = false;
@@ -813,8 +739,7 @@ local function format_roll(packet)
         state = ' ' .. chat_colour_unlucky .. '(Unlucky!)' .. chat_colour_normal;
     end
 
-    local enhancement = get_roll_enhancement_for_actor(packet.user_id);
-    local effect_text = get_effect_text(data, total, enhancement);
+    local effect_text = get_effect_text(data, total);
 
     return ('%s -> %s %s%s (%s)'):fmt(
         target_names,
@@ -887,10 +812,6 @@ ashita.events.register('packet_in', 'cortracker_packet_in_cb', function(e)
         tostring(total),
         #packet.targets
     ));
-    debug_message(('value mode: rollplus=%d (override=%s)'):fmt(
-        get_roll_enhancement(),
-        tostring(settings.phantom_roll_plus_override)
-    ));
 
     local message = format_roll(packet);
     if message ~= nil and message ~= last_roll then
@@ -957,19 +878,6 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
     elseif sub == 'debug' then
         settings.debug = parse_toggle(settings.debug);
         print_message('Debug output: ' .. (settings.debug and 'ON' or 'OFF'));
-    elseif sub == 'rollplus' then
-        if value == nil or value == '' or value:lower() == 'auto' then
-            settings.phantom_roll_plus_override = nil;
-            print_message(('Phantom Roll equipment tier: AUTO (currently +%d)'):fmt(get_roll_enhancement()));
-        else
-            local tier = tonumber(value);
-            if tier == nil or tier < 0 or tier > 2 or math.floor(tier) ~= tier then
-                print_message('Usage: /cortracker rollplus auto|0|1|2');
-            else
-                settings.phantom_roll_plus_override = tier;
-                print_message(('Phantom Roll equipment tier override: +%d'):fmt(tier));
-            end
-        end
 	elseif sub == 'on' then
 		ui.set_visible(true);
 		print_message('UI: ON');
@@ -981,11 +889,10 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
         local layout = ui.toggle_layout();
         print_message('UI layout: ' .. layout:upper());
     elseif sub == 'status' then
-        print_message(('lucky=%s, suppress=%s, debug=%s, rollplus=+%d, ui=%s, layout=%s, tracking=%s'):fmt(
+        print_message(('lucky=%s, suppress=%s, debug=%s, ui=%s, layout=%s, tracking=%s'):fmt(
             tostring(settings.show_lucky_unlucky_numbers),
             tostring(settings.suppress_default_roll_text),
             tostring(settings.debug),
-            get_roll_enhancement(),
             tostring(ui.is_visible()),
             ui.get_layout(),
             is_local_player_cor() and 'party' or 'self'
@@ -994,7 +901,6 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
         print_message('/cortracker lucky [on|off]');
         print_message('/cortracker suppress [on|off]');
         print_message('/cortracker debug [on|off]');
-        print_message('/cortracker rollplus auto|0|1|2');
         print_message('/cortracker [on|off]');
         print_message('/cortracker ui - toggle condensed/large layout');
         print_message('/ctracker  - toggle roll UI visibility');

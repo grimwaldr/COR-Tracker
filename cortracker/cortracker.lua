@@ -30,6 +30,13 @@ local last_roll_time = 0;
 local duplicate_window = 1.0;
 
 local JOB_COR = 17;
+
+local job_abbreviations = {
+    [1]  = 'WAR', [2]  = 'MNK', [3]  = 'WHM', [4]  = 'BLM', [5]  = 'RDM',
+    [6]  = 'THF', [7]  = 'PLD', [8]  = 'DRK', [9]  = 'BST', [10] = 'BRD',
+    [11] = 'RNG', [12] = 'SAM', [13] = 'NIN', [14] = 'DRG', [15] = 'SMN',
+    [16] = 'BLU', [17] = 'COR', [18] = 'PUP', [19] = 'DNC', [20] = 'SCH',
+};
 local BUST_BUFF_ID = 309;
 
 -- Phoenix bust duration is 300s minus the Bust Duration merit.  This is only a
@@ -372,8 +379,10 @@ end
 --   roll value (+ job bonus on 1-11) or flat bust value,
 --   then level correction when the COR level is below the target's main level.
 -- Phantom Roll+ gear does not exist in the era, so there is no gear term.
+-- Returns the power and whether the job bonus was applied.
 local function calculate_power(data, total, actor_id, target_id)
     local power;
+    local job_bonus = false;
 
     if total > 11 then
         if data.bust == nil then
@@ -387,6 +396,7 @@ local function calculate_power(data, total, actor_id, target_id)
         end
         if data.bonus_job ~= nil and party_has_main_job(data.bonus_job) then
             power = power + data.bonus;
+            job_bonus = true;
         end
     end
 
@@ -396,7 +406,7 @@ local function calculate_power(data, total, actor_id, target_id)
         power = math.ceil(power * cor_level / target_level);
     end
 
-    return power;
+    return power, job_bonus;
 end
 
 local function get_or_create_roll(buff_id, roll_name)
@@ -779,11 +789,16 @@ local function get_effect_text(data, total, actor_id, target_id)
         return ('-%d%s %s'):fmt(power, data.bust.percent and '%' or '', data.bust.desc);
     end
 
-    local power = calculate_power(data, total, actor_id, target_id);
+    local power, job_bonus = calculate_power(data, total, actor_id, target_id);
     if power == nil then
         return 'Unknown';
     end
-    return ('+%d%s %s'):fmt(power, data.percent and '%' or '', data.desc);
+
+    local text = ('+%d%s %s'):fmt(power, data.percent and '%' or '', data.desc);
+    if job_bonus then
+        text = ('%s, %s Bonus'):fmt(text, job_abbreviations[data.bonus_job] or '?');
+    end
+    return text;
 end
 
 local function update_active_roll(packet, player_id)

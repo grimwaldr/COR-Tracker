@@ -20,7 +20,7 @@ The HUD lists active rolls with their total, effect and time left. It hides itse
 Values are calculated the same way the Phoenix server does it:
 
 1. Base value for the total, from Phoenix's roll table.
-2. Job bonus if anyone in the party has the roll's job as their main job (e.g. +10 Chaos with a DRK). No matching job means the base value.
+2. Job bonus if anyone in the party has the roll's job as their main job (e.g. +10 Chaos with a DRK). The effect is tagged, like `DRK Bonus`. No matching job means the base value.
 3. Level correction if the COR's level is below the target's, which mostly matters for /COR: `ceil(value * COR level / target level)`.
 
 A bust only hits the roller. It's a flat penalty per roll, shown in red in the HUD with its own timer. Everyone else just loses the roll. Beast, Drachen and Puppet busts have no penalty.

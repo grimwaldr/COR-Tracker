@@ -15,9 +15,11 @@ Renamed to COR Tracker to avoid confusion with its HXI counterpart Roll Tracker.
 - Displays Phantom Roll results, roll numbers and estimated effects in the chat log.
 - Tracks active rolls and their remaining duration in an optional HUD.
 - Condensed and Large HUD layouts.
-- When playing Corsair, tracks rolls across the whole party and shows who is affected.
+- When playing Corsair (main or sub), tracks rolls across the whole party and shows who is affected.
 - When playing another job, displays the rolls currently affecting you.
-- Handles Double-Up, Lucky/Unlucky rolls, XI and Busts.
+- Handles Double-Up, Lucky/Unlucky rolls, XI and Busts. Busts show in the HUD with their penalty and timer.
+- Effect values use Phoenix XI's server data, including the party job bonus and the /COR level correction.
+- Timers marked with `~` are estimates until the server sends the exact value.
 
 ## Commands
 

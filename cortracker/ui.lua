@@ -1,4 +1,4 @@
--- CorTracker 2.2 UI
+-- CorTracker UI
 -- Switchable compact / expanded ImGui display for active Phantom Rolls.
 
 local imgui = require('imgui');
@@ -13,7 +13,10 @@ ui.state = {
     layout = saved.ui_layout,
 };
 
-local function format_time(seconds)
+local bust_colour = { 1.0, 0.45, 0.45, 1.0 };
+
+-- Estimated timers (no exact server value yet) are prefixed with '~'.
+local function format_time(seconds, provisional)
     if seconds == nil then
         return '--:--';
     end
@@ -21,7 +24,30 @@ local function format_time(seconds)
     seconds = math.max(0, math.floor(seconds));
     local minutes = math.floor(seconds / 60);
     local remainder = seconds % 60;
-    return ('%d:%02d'):fmt(minutes, remainder);
+    return ('%s%d:%02d'):fmt(provisional and '~' or '', minutes, remainder);
+end
+
+local function get_number_text(roll)
+    if roll.number_text ~= nil then
+        return roll.number_text;
+    end
+    return roll.total ~= nil and tostring(roll.total) or '?';
+end
+
+local function get_timer_text(roll)
+    local remaining = nil;
+    if roll.expiration ~= nil then
+        remaining = roll.expiration - os.clock();
+    end
+    return format_time(remaining, roll.provisional);
+end
+
+local function roll_text(roll, text)
+    if roll.is_bust then
+        imgui.TextColored(bust_colour, text);
+    else
+        imgui.Text(text);
+    end
 end
 
 function ui.is_visible()
@@ -69,15 +95,10 @@ local function get_column_widths(active_rolls)
     local timer_width = 0;
 
     for _, roll in ipairs(active_rolls) do
-        local remaining = nil;
-        if roll.expiration ~= nil then
-            remaining = roll.expiration - os.clock();
-        end
-
         local name = roll.name or 'Unknown Roll';
-        local number = roll.total ~= nil and tostring(roll.total) or '?';
+        local number = get_number_text(roll);
         local effect = roll.effect_text or 'Value unknown';
-        local timer = format_time(remaining);
+        local timer = get_timer_text(roll);
 
         name_width = math.max(name_width, imgui.CalcTextSize(name));
         number_width = math.max(number_width, imgui.CalcTextSize(number));
@@ -101,24 +122,19 @@ local function render_condensed(active_rolls)
     local timer_x = effect_x + effect_width + gap;
 
     for _, roll in ipairs(active_rolls) do
-        local remaining = nil;
-        if roll.expiration ~= nil then
-            remaining = roll.expiration - os.clock();
-        end
-
-        local number = roll.total ~= nil and tostring(roll.total) or '?';
+        local number = get_number_text(roll);
         local effect = roll.effect_text or 'Value unknown';
-        local timer = format_time(remaining);
+        local timer = get_timer_text(roll);
 
-        imgui.Text(roll.name or 'Unknown Roll');
+        roll_text(roll, roll.name or 'Unknown Roll');
 
         imgui.SameLine();
         imgui.SetCursorPosX(number_x);
-        imgui.Text(number);
+        roll_text(roll, number);
 
         imgui.SameLine();
         imgui.SetCursorPosX(effect_x);
-        imgui.Text(effect);
+        roll_text(roll, effect);
 
         imgui.SameLine();
         imgui.SetCursorPosX(timer_x);
@@ -138,26 +154,21 @@ local function render_large(active_rolls)
     local timer_x = number_x + number_width + gap;
 
     for index, roll in ipairs(active_rolls) do
-        local remaining = nil;
-        if roll.expiration ~= nil then
-            remaining = roll.expiration - os.clock();
-        end
-
-        local number = roll.total ~= nil and tostring(roll.total) or '?';
+        local number = get_number_text(roll);
         local effect = roll.effect_text or 'Value unknown';
-        local timer = format_time(remaining);
+        local timer = get_timer_text(roll);
 
-        imgui.Text(roll.name or 'Unknown Roll');
+        roll_text(roll, roll.name or 'Unknown Roll');
 
         imgui.SameLine();
         imgui.SetCursorPosX(number_x);
-        imgui.Text(number);
+        roll_text(roll, number);
 
         imgui.SameLine();
         imgui.SetCursorPosX(timer_x);
         imgui.Text(timer);
 
-        imgui.Text(effect);
+        roll_text(roll, effect);
 
         if roll.target_text ~= nil and roll.target_text ~= '' then
             imgui.TextDisabled(roll.target_text);

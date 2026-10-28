@@ -10,7 +10,7 @@ while replacing the legacy Ashita event / memory / action packet APIs with Ashit
 
 addon.name      = 'cortracker';
 addon.author    = 'Daniel_H (Roll Tracker), Artoo (v4 rewrite), and Grimwald (Classic)';
-addon.version   = '1.0.2';
+addon.version   = '1.1.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');
@@ -26,8 +26,18 @@ local settings = {
     debug = false,
 };
 
--- Prevent the same roll action packet being printed more than once.
+-- Prevent the same roll action packet being printed more than once.  A short
+-- time window stops duplicates without hiding a genuine repeat roll later.
 local last_roll = '';
+local last_roll_time = 0;
+local duplicate_window = 1.0;
+
+local JOB_COR = 17;
+local BUST_BUFF_ID = 309;
+
+-- Phoenix bust duration is 300s minus the Bust Duration merit.  This is only a
+-- fallback until 0x63 supplies the exact timer for the local player.
+local BUST_FALLBACK_DURATION = 300;
 
 -- --------------------------------------------------------------------------
 -- Roll data
@@ -53,17 +63,6 @@ local corsair_roll_ids = {
     [115] = 'Puppet Roll',
     [116] = 'Dancer\'s Roll',
     [117] = 'Scholar\'s Roll',
-    [118] = 'Bolter\'s Roll',
-    [119] = 'Caster\'s Roll',
-    [120] = 'Courser\'s Roll',
-    [121] = 'Blitzer\'s Roll',
-    [122] = 'Tactician\'s Roll',
-    [302] = 'Allies\' Roll',
-    [303] = 'Miser\'s Roll',
-    [304] = 'Companion\'s Roll',
-    [305] = 'Avenger\'s Roll',
-    [390] = 'Naturalist\'s Roll',
-    [391] = 'Runeist\'s Roll',
 };
 
 local roll_data = require('rolls');
@@ -93,17 +92,6 @@ local roll_buff_ids = {
     [115] = 327, -- Puppet Roll
     [116] = 328, -- Dancer's Roll
     [117] = 329, -- Scholar's Roll
-    [118] = 330, -- Bolter's Roll
-    [119] = 331, -- Caster's Roll
-    [120] = 332, -- Courser's Roll
-    [121] = 333, -- Blitzer's Roll
-    [122] = 334, -- Tactician's Roll
-    [302] = 335, -- Allies' Roll
-    [303] = 336, -- Miser's Roll
-    [304] = 337, -- Companion's Roll
-    [305] = 338, -- Avenger's Roll
-    [390] = 339, -- Naturalist's Roll
-    [391] = 600, -- Runeist's Roll
 };
 
 local roll_names_by_buff_id = {};
@@ -113,6 +101,10 @@ end
 
 -- Indexed by buff ID.  The UI receives a sorted copy of this table.
 local active_rolls = {};
+
+-- Bust debuffs, keyed by '<server id>:<roll buff id>'.  Phoenix only applies
+-- the bust to the roller; everyone else simply loses the roll.
+local active_busts = {};
 
 -- tTimers uses the game real-time pointer to turn packet 0x63's absolute
 -- expiration values into seconds remaining.  Keeping the same method avoids
@@ -236,11 +228,6 @@ local function get_party_name_by_server_id(server_id)
 end
 
 local function get_entity_name_by_server_id(server_id)
-    local entity_manager = AshitaCore:GetMemoryManager():GetEntity();
-    if entity_manager == nil then
-        return nil;
-    end
-
     for i = 0, 2303 do
         local entity = GetEntity(i);
         if entity ~= nil and entity.ServerId == server_id then
@@ -286,7 +273,7 @@ local function calculate_buff_duration(value)
     local real_duration = value - comparand;
 
     while real_duration < -2147483648 do
-        real_duration = real_duration + 0xFFFFFFFF;
+        real_duration = real_duration + 0x100000000;
     end
 
     if real_duration < 0 then
@@ -296,9 +283,14 @@ local function calculate_buff_duration(value)
     return real_duration / 60;
 end
 
+-- True for COR main or sub.  Phoenix lets a /COR roll (one roll slot instead
+-- of two), so both get the party view.
 local function is_local_player_cor()
     local player = AshitaCore:GetMemoryManager():GetPlayer();
-    return player ~= nil and player:GetMainJob() == 17;
+    if player == nil then
+        return false;
+    end
+    return player:GetMainJob() == JOB_COR or player:GetSubJob() == JOB_COR;
 end
 
 local function is_party_member(server_id)
@@ -320,6 +312,94 @@ local function is_party_member(server_id)
     end
 
     return false;
+end
+
+-- Returns the 0-5 party slot for a server ID, or nil.
+local function get_party_index(server_id)
+    local party = AshitaCore:GetMemoryManager():GetParty();
+    if party == nil or server_id == nil or server_id == 0 then
+        return nil, nil;
+    end
+
+    for i = 0, 5 do
+        if party:GetMemberIsActive(i) == 1 and party:GetMemberServerId(i) == server_id then
+            return party, i;
+        end
+    end
+
+    return nil, nil;
+end
+
+-- Mirrors Phoenix's checkForJobBonus: any party member (the roller included)
+-- with the bonus job as their main job.
+local function party_has_main_job(job)
+    local party = AshitaCore:GetMemoryManager():GetParty();
+    if party == nil then
+        return false;
+    end
+
+    for i = 0, 5 do
+        if party:GetMemberIsActive(i) == 1 and party:GetMemberMainJob(i) == job then
+            return true;
+        end
+    end
+
+    return false;
+end
+
+-- Mirrors utils.getActiveJobLevel(caster, COR).
+local function get_cor_level(server_id)
+    local party, index = get_party_index(server_id);
+    if party == nil then
+        return nil;
+    end
+
+    if party:GetMemberMainJob(index) == JOB_COR then
+        return party:GetMemberMainJobLevel(index);
+    elseif party:GetMemberSubJob(index) == JOB_COR then
+        return party:GetMemberSubJobLevel(index);
+    end
+
+    return nil;
+end
+
+local function get_main_level(server_id)
+    local party, index = get_party_index(server_id);
+    if party == nil then
+        return nil;
+    end
+    return party:GetMemberMainJobLevel(index);
+end
+
+-- Mirrors Phoenix's applyRoll power calculation:
+--   roll value (+ job bonus on 1-11) or flat bust value,
+--   then level correction when the COR level is below the target's main level.
+-- Phantom Roll+ gear does not exist in the era, so there is no gear term.
+local function calculate_power(data, total, actor_id, target_id)
+    local power;
+
+    if total > 11 then
+        if data.bust == nil then
+            return nil;
+        end
+        power = data.bust.value;
+    else
+        power = data.values[total];
+        if power == nil then
+            return nil;
+        end
+        if data.bonus_job ~= nil and party_has_main_job(data.bonus_job) then
+            power = power + data.bonus;
+        end
+    end
+
+    local cor_level = get_cor_level(actor_id);
+    local target_level = get_main_level(target_id);
+    if cor_level ~= nil and target_level ~= nil and cor_level > 0 and cor_level < target_level then
+        power = math.ceil(power * cor_level / target_level);
+    end
+
+    return power;
 end
 
 local function get_or_create_roll(buff_id, roll_name)
@@ -385,6 +465,7 @@ local function get_active_roll_list()
                         total = target.total,
                         effect_text = effect_key,
                         expiration = target.expiration,
+                        provisional = target.provisional,
                         target_names = {},
                     };
                     groups[key] = group;
@@ -394,6 +475,7 @@ local function get_active_roll_list()
                         -- Once they drop off, the timer naturally advances to
                         -- the next remaining recipient.
                         group.expiration = target.expiration;
+                        group.provisional = target.provisional;
                     end
                 end
 
@@ -410,6 +492,23 @@ local function get_active_roll_list()
         end
 
         remove_empty_roll(buff_id);
+    end
+
+    for key, bust in pairs(active_busts) do
+        if bust.expiration ~= nil and bust.expiration <= now then
+            active_busts[key] = nil;
+        elseif (party_view and is_party_member(bust.target_id)) or bust.target_id == player_id then
+            list[#list + 1] = {
+                name = bust.name,
+                total = nil,
+                number_text = 'Bust',
+                is_bust = true,
+                effect_text = bust.effect_text,
+                expiration = bust.expiration,
+                provisional = bust.provisional,
+                target_text = party_view and bust.target_name or nil,
+            };
+        end
     end
 
     table.sort(list, function(a, b)
@@ -468,10 +567,16 @@ local function handle_buff_timer_packet(e)
 
     local now = os.clock();
     local present_roll_buffs = {};
+    local bust_durations = {};
 
     for i = 1, 32 do
         local buff_id = struct.unpack('H', e.data, 0x06 + (i * 2) + 1);
         local roll_name = roll_names_by_buff_id[buff_id];
+
+        if buff_id == BUST_BUFF_ID then
+            local raw_expiration = struct.unpack('L', e.data, 0x44 + (i * 4) + 1);
+            bust_durations[#bust_durations + 1] = calculate_buff_duration(raw_expiration);
+        end
 
         if roll_name ~= nil then
             present_roll_buffs[buff_id] = true;
@@ -509,6 +614,38 @@ local function handle_buff_timer_packet(e)
             remove_empty_roll(buff_id);
         end
     end
+
+    -- Bust buffs don't say which roll they came from, so pair them up by age:
+    -- the oldest tracked bust gets the shortest remaining timer.
+    local own_busts = {};
+    for key, bust in pairs(active_busts) do
+        if bust.target_id == player_id then
+            own_busts[#own_busts + 1] = { key = key, bust = bust };
+        end
+    end
+    table.sort(own_busts, function(a, b) return a.bust.applied_at < b.bust.applied_at; end);
+
+    local known_durations = {};
+    for _, duration in ipairs(bust_durations) do
+        if duration ~= nil then
+            known_durations[#known_durations + 1] = duration;
+        end
+    end
+    table.sort(known_durations);
+
+    -- More tracked busts than server busts: the oldest ones have worn off.
+    local excess = #own_busts - #bust_durations;
+    for i, item in ipairs(own_busts) do
+        if i <= excess then
+            active_busts[item.key] = nil;
+        else
+            local duration = known_durations[i - math.max(excess, 0)];
+            if duration ~= nil then
+                item.bust.expiration = now + duration;
+                item.bust.provisional = false;
+            end
+        end
+    end
 end
 
 local function handle_party_buff_packet(e)
@@ -527,6 +664,7 @@ local function handle_party_buff_packet(e)
 
         if member_id ~= 0 and is_party_member(member_id) then
             local present = {};
+            local bust_count = 0;
 
             for j = 0, 31 do
                 local high_bits = bit.lshift(
@@ -538,6 +676,10 @@ local function handle_party_buff_packet(e)
 
                 if buff_id == 255 then
                     break;
+                end
+
+                if buff_id == BUST_BUFF_ID then
+                    bust_count = bust_count + 1;
                 end
 
                 local roll_name = roll_names_by_buff_id[buff_id];
@@ -572,6 +714,19 @@ local function handle_party_buff_packet(e)
                     end
                 end
             end
+
+            -- Another COR's busts: drop the oldest ones once the server shows
+            -- fewer Bust buffs than we are tracking for them.
+            local member_busts = {};
+            for key, bust in pairs(active_busts) do
+                if bust.target_id == member_id and (now - bust.applied_at) > 0.2 then
+                    member_busts[#member_busts + 1] = { key = key, applied_at = bust.applied_at };
+                end
+            end
+            table.sort(member_busts, function(a, b) return a.applied_at < b.applied_at; end);
+            for i = 1, #member_busts - bust_count do
+                active_busts[member_busts[i].key] = nil;
+            end
         end
     end
 end
@@ -590,17 +745,6 @@ local circled_numbers = {
     [11] = string.char(0x87, 0x4A),
     [12] = string.char(0x87, 0x4B),
 };
-
-local function round_number(value)
-    if type(value) ~= 'number' then
-        return value;
-    end
-    if math.floor(value) == value then
-        return tostring(value);
-    end
-    return ('%.2f'):fmt(value):gsub('0+$', ''):gsub('%.$', '');
-end
-
 
 local function format_target_names(packet)
     local names = {};
@@ -625,29 +769,24 @@ local function get_roll_total(packet)
     return nil;
 end
 
-local function get_effect_text(data, total)
-    local effect_text = 'Unknown';
-
+-- Effect text for one recipient.  Busts only carry a penalty for the roller.
+local function get_effect_text(data, total, actor_id, target_id)
     if total > 11 then
-        local bust_value = data.bust;
-        if type(bust_value) == 'table' then
-            effect_text = ('-%s Regain / -%s Regen'):fmt(round_number(bust_value[1]), round_number(bust_value[2]));
-        elseif bust_value ~= nil then
-            local suffix = data.percent and '%' or '';
-            effect_text = ('-%s%s %s'):fmt(round_number(bust_value), suffix, data.desc);
+        if target_id ~= actor_id then
+            return 'Roll lost';
         end
-    else
-        local value = data.values[0] and data.values[0][total] or nil;
-
-        if type(value) == 'table' then
-            effect_text = ('+%s Regain / +%s Regen'):fmt(round_number(value[1]), round_number(value[2]));
-        elseif value ~= nil then
-            local suffix = data.percent and '%' or '';
-            effect_text = ('+%s%s %s'):fmt(round_number(value), suffix, data.desc);
+        if data.bust == nil then
+            return 'No bust penalty';
         end
+        local power = calculate_power(data, total, actor_id, target_id);
+        return ('-%d%s %s'):fmt(power, data.bust.percent and '%' or '', data.bust.desc);
     end
 
-    return effect_text;
+    local power = calculate_power(data, total, actor_id, target_id);
+    if power == nil then
+        return 'Unknown';
+    end
+    return ('+%d%s %s'):fmt(power, data.percent and '%' or '', data.desc);
 end
 
 local function update_active_roll(packet, player_id)
@@ -665,7 +804,6 @@ local function update_active_roll(packet, player_id)
         return false;
     end
 
-    local effect_text = get_effect_text(data, total);
     local now = os.clock();
     local entry = get_or_create_roll(buff_id, roll_name);
     local tracked = false;
@@ -677,20 +815,46 @@ local function update_active_roll(packet, player_id)
 
             if total > 11 then
                 entry.targets[target_id] = nil;
+
+                if target_id == packet.user_id then
+                    active_busts[('%u:%u'):fmt(target_id, buff_id)] = {
+                        name = roll_name,
+                        target_id = target_id,
+                        target_name = resolve_target_name(target_id),
+                        effect_text = get_effect_text(data, total, packet.user_id, target_id),
+                        applied_at = now,
+                        expiration = now + BUST_FALLBACK_DURATION,
+                        provisional = true,
+                    };
+                end
             else
+                -- Remote party members do not expose exact expiry in 0x076.
+                -- 300s is a temporary fallback; when the local COR is part
+                -- of this application, 0x63 replaces it with the exact
+                -- server timer and propagates that expiry to the group.
+                local expiration = now + 300;
+                local provisional = true;
+
+                -- Double-Up upgrades the roll in place and Phoenix keeps the
+                -- remaining duration, so don't reset the timer.
+                local existing = entry.targets[target_id];
+                if existing ~= nil
+                    and existing.actor_id == packet.user_id
+                    and existing.total ~= nil
+                    and existing.total < total
+                    and existing.expiration ~= nil then
+                    expiration = existing.expiration;
+                    provisional = existing.provisional;
+                end
+
                 entry.targets[target_id] = {
                     name = resolve_target_name(target_id),
                     total = total,
-                    number_display = circled_numbers[total] or tostring(total),
-                    effect_text = effect_text,
+                    effect_text = get_effect_text(data, total, packet.user_id, target_id),
                     applied_at = now,
                     actor_id = packet.user_id,
-                    -- Remote party members do not expose exact expiry in 0x076.
-                    -- 300s is a temporary fallback; when the local COR is part
-                    -- of this application, 0x63 replaces it with the exact
-                    -- server timer and propagates that expiry to the group.
-                    expiration = now + 300,
-                    provisional = true,
+                    expiration = expiration,
+                    provisional = provisional,
                 };
             end
         end
@@ -712,14 +876,27 @@ local function format_roll(packet)
         return nil;
     end
 
-    local target_names, target_count;
-    if is_local_player_cor() then
-        target_names, target_count = format_target_names(packet);
+    local player_id = get_player_server_id();
+    local target_names;
+    local effect_target;
+
+    if total > 11 then
+        -- Only the roller takes the bust; everyone else just loses the roll.
+        target_names = resolve_target_name(packet.user_id);
+        effect_target = packet.user_id;
+        if not is_local_player_cor() and packet.user_id ~= player_id then
+            target_names = resolve_target_name(player_id);
+            effect_target = player_id;
+        end
+    elseif is_local_player_cor() then
+        target_names = format_target_names(packet);
+        -- Level correction can differ per member; the HUD shows each value.
+        effect_target = packet.user_id;
     else
-        local player_id = get_player_server_id();
         target_names = resolve_target_name(player_id);
-        target_count = 1;
+        effect_target = player_id;
     end
+
     local number_display = circled_numbers[total] or tostring(total);
 
     local roll_label = roll_name;
@@ -738,7 +915,7 @@ local function format_roll(packet)
         state = ' ' .. chat_colour_unlucky .. '(Unlucky!)' .. chat_colour_normal;
     end
 
-    local effect_text = get_effect_text(data, total);
+    local effect_text = get_effect_text(data, total, packet.user_id, effect_target);
 
     return ('%s -> %s %s%s (%s)'):fmt(
         target_names,
@@ -813,13 +990,19 @@ ashita.events.register('packet_in', 'cortracker_packet_in_cb', function(e)
     ));
 
     local message = format_roll(packet);
-    if message ~= nil and message ~= last_roll then
+    local now = os.clock();
+    if message ~= nil and (message ~= last_roll or (now - last_roll_time) > duplicate_window) then
         print_message(message);
         last_roll = message;
+        last_roll_time = now;
     end
 end);
 
 ashita.events.register('d3d_present', 'cortracker_ui_present_cb', function()
+    -- Skip the per-frame list rebuild while the HUD is hidden.
+    if not ui.is_visible() then
+        return;
+    end
     ui.render(get_active_roll_list());
 end);
 
@@ -877,13 +1060,13 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
     elseif sub == 'debug' then
         settings.debug = parse_toggle(settings.debug);
         print_message('Debug output: ' .. (settings.debug and 'ON' or 'OFF'));
-	elseif sub == 'on' then
-		ui.set_visible(true);
-		print_message('UI: ON');
+    elseif sub == 'on' then
+        ui.set_visible(true);
+        print_message('UI: ON');
 
-	elseif sub == 'off' then
-		ui.set_visible(false);
-		print_message('UI: OFF');
+    elseif sub == 'off' then
+        ui.set_visible(false);
+        print_message('UI: OFF');
     elseif sub == 'ui' then
         local layout = ui.toggle_layout();
         print_message('UI layout: ' .. layout:upper());

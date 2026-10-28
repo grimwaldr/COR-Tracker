@@ -7,7 +7,7 @@ BSD 3-Clause license, see LICENSE.
 
 addon.name      = 'cortracker';
 addon.author    = 'Grimwald';
-addon.version   = '1.1.0';
+addon.version   = '2.0.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');

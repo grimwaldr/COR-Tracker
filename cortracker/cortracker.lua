@@ -1,15 +1,12 @@
 --[[
 COR Tracker
-
-Original RollTracker copyright Daniel_H and contributors.
-Original source distributed under the BSD 3-Clause license.
-
-This rewrite preserves the roll data and intended behavior of the original addon,
-while replacing the legacy Ashita event / memory / action packet APIs with Ashita v4 APIs.
+Copyright (c) 2026, Grimwald
+Portions derived from RollTracker, Copyright (c) Daniel_H and contributors.
+BSD 3-Clause license, see LICENSE.
 --]]
 
 addon.name      = 'cortracker';
-addon.author    = 'Daniel_H (Roll Tracker), Artoo (v4 rewrite), and Grimwald (Classic)';
+addon.author    = 'Grimwald';
 addon.version   = '1.1.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 

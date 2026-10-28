@@ -69,5 +69,3 @@ Roll data comes from the Phoenix server scripts, not wikis: `scripts/globals/job
 - Gallant's busts lower Defense and Healer's busts lower Cure Potency Received, not the stat the roll itself boosts.
 
 Rolls added after the 75 era (Bolter's onward) aren't tracked.
-
-Licensed under BSD 3-Clause, see [LICENSE](LICENSE).

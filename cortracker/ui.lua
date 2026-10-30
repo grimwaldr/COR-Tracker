@@ -14,6 +14,7 @@ ui.state = {
 };
 
 local bust_colour = { 1.0, 0.45, 0.45, 1.0 };
+local bonus_colour = { 0.95, 0.80, 0.40, 1.0 };
 
 -- Estimated timers (no exact server value yet) are prefixed with '~'.
 local function format_time(seconds, provisional)
@@ -110,8 +111,18 @@ local function get_column_widths(active_rolls)
 end
 
 
+-- Job bonus label ('DRK Bonus'), drawn after the timer on the roll's top line.
+local function render_bonus(roll, x)
+    if roll.bonus_text == nil then
+        return;
+    end
+    imgui.SameLine();
+    imgui.SetCursorPosX(x);
+    imgui.TextColored(bonus_colour, roll.bonus_text);
+end
+
 local function render_condensed(active_rolls)
-    local name_width, number_width, effect_width, _ =
+    local name_width, number_width, effect_width, timer_width =
         get_column_widths(active_rolls);
 
     local start_x = imgui.GetCursorPosX();
@@ -120,6 +131,7 @@ local function render_condensed(active_rolls)
     local number_x = start_x + name_width + gap;
     local effect_x = number_x + number_width + gap;
     local timer_x = effect_x + effect_width + gap;
+    local bonus_x = timer_x + timer_width + gap;
 
     for _, roll in ipairs(active_rolls) do
         local number = get_number_text(roll);
@@ -139,12 +151,14 @@ local function render_condensed(active_rolls)
         imgui.SameLine();
         imgui.SetCursorPosX(timer_x);
         imgui.Text(timer);
+
+        render_bonus(roll, bonus_x);
     end
 end
 
 
 local function render_large(active_rolls)
-    local name_width, number_width, _, _ =
+    local name_width, number_width, _, timer_width =
         get_column_widths(active_rolls);
 
     local start_x = imgui.GetCursorPosX();
@@ -152,6 +166,7 @@ local function render_large(active_rolls)
 
     local number_x = start_x + name_width + gap;
     local timer_x = number_x + number_width + gap;
+    local bonus_x = timer_x + timer_width + gap;
 
     for index, roll in ipairs(active_rolls) do
         local number = get_number_text(roll);
@@ -167,6 +182,8 @@ local function render_large(active_rolls)
         imgui.SameLine();
         imgui.SetCursorPosX(timer_x);
         imgui.Text(timer);
+
+        render_bonus(roll, bonus_x);
 
         roll_text(roll, effect);
 

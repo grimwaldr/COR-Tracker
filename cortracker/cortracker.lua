@@ -7,7 +7,7 @@ BSD 3-Clause license, see LICENSE.
 
 addon.name      = 'cortracker';
 addon.author    = 'Grimwald';
-addon.version   = '2.0.0';
+addon.version   = '2.1.0';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');
@@ -19,6 +19,9 @@ local ui = require('ui');
 -- --------------------------------------------------------------------------
 local settings = {
     show_lucky_unlucky_numbers = false,
+    -- Off: show the roll's static value. On: apply Phoenix's level
+    -- correction for targets above the COR's level.
+    level_correction = false,
     suppress_default_roll_text = true,
     debug = false,
 };
@@ -402,7 +405,9 @@ local function calculate_power(data, total, actor_id, target_id)
 
     local cor_level = get_cor_level(actor_id);
     local target_level = get_main_level(target_id);
-    if cor_level ~= nil and target_level ~= nil and cor_level > 0 and cor_level < target_level then
+    if settings.level_correction
+        and cor_level ~= nil and target_level ~= nil
+        and cor_level > 0 and cor_level < target_level then
         power = math.ceil(power * cor_level / target_level);
     end
 
@@ -1069,6 +1074,9 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
     elseif sub == 'suppress' then
         settings.suppress_default_roll_text = parse_toggle(settings.suppress_default_roll_text);
         print_message('Default roll text suppression: ' .. (settings.suppress_default_roll_text and 'ON' or 'OFF'));
+    elseif sub == 'level' then
+        settings.level_correction = parse_toggle(settings.level_correction);
+        print_message('Level correction: ' .. (settings.level_correction and 'ON' or 'OFF'));
     elseif sub == 'debug' then
         settings.debug = parse_toggle(settings.debug);
         print_message('Debug output: ' .. (settings.debug and 'ON' or 'OFF'));
@@ -1083,8 +1091,9 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
         local layout = ui.toggle_layout();
         print_message('UI layout: ' .. layout:upper());
     elseif sub == 'status' then
-        print_message(('lucky=%s, suppress=%s, debug=%s, ui=%s, layout=%s, tracking=%s'):fmt(
+        print_message(('lucky=%s, level=%s, suppress=%s, debug=%s, ui=%s, layout=%s, tracking=%s'):fmt(
             tostring(settings.show_lucky_unlucky_numbers),
+            tostring(settings.level_correction),
             tostring(settings.suppress_default_roll_text),
             tostring(settings.debug),
             tostring(ui.is_visible()),
@@ -1093,6 +1102,7 @@ ashita.events.register('command', 'cortracker_command_cb', function(e)
         ));
     else
         print_message('/cortracker lucky [on|off]');
+        print_message('/cortracker level [on|off] - scale values by COR level');
         print_message('/cortracker suppress [on|off]');
         print_message('/cortracker debug [on|off]');
         print_message('/cortracker [on|off]');

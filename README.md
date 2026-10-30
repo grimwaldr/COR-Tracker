@@ -17,11 +17,10 @@ The HUD lists active rolls with their total, effect and time left. It hides itse
 
 ### Effect values
 
-Values are calculated the same way the Phoenix server does it:
-
 1. Base value for the total, from Phoenix's roll table.
 2. Job bonus if anyone in the party has the roll's job as their main job (e.g. +10 Chaos with a DRK). The effect is tagged, like `DRK Bonus`. No matching job means the base value.
-3. Level correction if the COR's level is below the target's, which mostly matters for /COR: `ceil(value * COR level / target level)`.
+
+By default that's the roll's static value. `/ct level on` also applies Phoenix's level correction, which lowers the value for party members above the COR's level: `ceil(value * COR level / target level)`. The roller always gets the full value.
 
 A bust only hits the roller. It's a flat penalty per roll, shown in red in the HUD with its own timer. Everyone else just loses the roll. Beast, Drachen and Puppet busts have no penalty.
 
@@ -44,6 +43,7 @@ Copy the `cortracker` folder into `Ashita/addons/` and run `/addon load cortrack
 | `/ctracker` | Toggle the HUD |
 | `/ct ui` | Switch between Condensed and Large layouts |
 | `/ct lucky on\|off` | Show Lucky/Unlucky numbers next to the roll name |
+| `/ct level on\|off` | Scale values by COR level (off by default) |
 | `/ct suppress on\|off` | Hide the game's own "receives the effect of" roll messages |
 | `/ct status` | Show current settings |
 | `/ct debug on\|off` | Debug output |

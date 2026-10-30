@@ -7,7 +7,7 @@ BSD 3-Clause license, see LICENSE.
 
 addon.name      = 'cortracker';
 addon.author    = 'Grimwald';
-addon.version   = '2.1.0';
+addon.version   = '2.1.1';
 addon.desc      = 'Displays Corsair roll totals, lucky/unlucky status, affected party members, and estimated roll effects.';
 
 require('common');
@@ -469,13 +469,14 @@ local function get_active_roll_list()
                 -- HUD never lies about potency merely to save a row.
                 local total_key = target.total ~= nil and tostring(target.total) or '?';
                 local effect_key = target.effect_text or 'Value unknown';
-                local key = total_key .. '\0' .. effect_key;
+                local key = total_key .. '\0' .. effect_key .. '\0' .. (target.bonus_text or '');
                 local group = groups[key];
                 if group == nil then
                     group = {
                         name = entry.name,
                         total = target.total,
                         effect_text = effect_key,
+                        bonus_text = target.bonus_text,
                         expiration = target.expiration,
                         provisional = target.provisional,
                         target_names = {},
@@ -782,6 +783,8 @@ local function get_roll_total(packet)
 end
 
 -- Effect text for one recipient.  Busts only carry a penalty for the roller.
+-- Returns the effect text and, when the job bonus applied, a separate label
+-- like 'DRK Bonus' (the HUD shows it on its own, chat appends it).
 local function get_effect_text(data, total, actor_id, target_id)
     if total > 11 then
         if target_id ~= actor_id then
@@ -800,10 +803,11 @@ local function get_effect_text(data, total, actor_id, target_id)
     end
 
     local text = ('+%d%s %s'):fmt(power, data.percent and '%' or '', data.desc);
+    local bonus_text = nil;
     if job_bonus then
-        text = ('%s, %s Bonus'):fmt(text, job_abbreviations[data.bonus_job] or '?');
+        bonus_text = ('%s Bonus'):fmt(job_abbreviations[data.bonus_job] or '?');
     end
-    return text;
+    return text, bonus_text;
 end
 
 local function update_active_roll(packet, player_id)
@@ -864,10 +868,12 @@ local function update_active_roll(packet, player_id)
                     provisional = existing.provisional;
                 end
 
+                local effect_text, bonus_text = get_effect_text(data, total, packet.user_id, target_id);
                 entry.targets[target_id] = {
                     name = resolve_target_name(target_id),
                     total = total,
-                    effect_text = get_effect_text(data, total, packet.user_id, target_id),
+                    effect_text = effect_text,
+                    bonus_text = bonus_text,
                     applied_at = now,
                     actor_id = packet.user_id,
                     expiration = expiration,
@@ -932,7 +938,10 @@ local function format_roll(packet)
         state = ' ' .. chat_colour_unlucky .. '(Unlucky!)' .. chat_colour_normal;
     end
 
-    local effect_text = get_effect_text(data, total, packet.user_id, effect_target);
+    local effect_text, bonus_text = get_effect_text(data, total, packet.user_id, effect_target);
+    if bonus_text ~= nil then
+        effect_text = ('%s, %s'):fmt(effect_text, bonus_text);
+    end
 
     return ('%s -> %s %s%s (%s)'):fmt(
         target_names,

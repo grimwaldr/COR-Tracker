@@ -111,13 +111,25 @@ local function get_column_widths(active_rolls)
 end
 
 
--- Job bonus label ('DRK Bonus'), drawn after the timer on the roll's top line.
-local function render_bonus(roll, x)
+-- Right edge of the window's content area.  Handles bindings that return
+-- either two numbers or a vector table.
+local function get_content_right()
+    local right = imgui.GetWindowContentRegionMax();
+    if type(right) == 'table' then
+        right = right[1] or right.x;
+    end
+    return right or 0;
+end
+
+-- Job bonus label ('DRK Bonus'), right-aligned on the roll's top line.
+-- min_x keeps it clear of the timer; the auto-resizing window grows to fit.
+local function render_bonus(roll, min_x)
     if roll.bonus_text == nil then
         return;
     end
+    local width = imgui.CalcTextSize(roll.bonus_text);
     imgui.SameLine();
-    imgui.SetCursorPosX(x);
+    imgui.SetCursorPosX(math.max(min_x, get_content_right() - width));
     imgui.TextColored(bonus_colour, roll.bonus_text);
 end
 

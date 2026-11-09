@@ -111,25 +111,47 @@ local function get_column_widths(active_rolls)
 end
 
 
--- Right edge of the window's content area.  Handles bindings that return
--- either two numbers or a vector table.
-local function get_content_right()
-    local right = imgui.GetWindowContentRegionMax();
-    if type(right) == 'table' then
-        right = right[1] or right.x;
+-- Calls an ImGui function that returns a width/position, if this Ashita
+-- binding has it.  Handles bindings that return numbers or a vector table.
+-- Returns nil when the function is missing or fails, so the HUD never errors.
+local function try_imgui_x(name)
+    local fn = imgui[name];
+    if type(fn) ~= 'function' then
+        return nil;
     end
-    return right or 0;
+    local ok, value = pcall(fn);
+    if not ok then
+        return nil;
+    end
+    if type(value) == 'table' then
+        value = value[1] or value.x;
+    end
+    return tonumber(value);
 end
 
 -- Job bonus label ('DRK Bonus'), right-aligned on the roll's top line.
--- min_x keeps it clear of the timer; the auto-resizing window grows to fit.
+-- min_x keeps it clear of the timer; if no width function is available it
+-- simply sits after the timer.
 local function render_bonus(roll, min_x)
     if roll.bonus_text == nil then
         return;
     end
+
     local width = imgui.CalcTextSize(roll.bonus_text);
     imgui.SameLine();
-    imgui.SetCursorPosX(math.max(min_x, get_content_right() - width));
+
+    local x = min_x;
+    local avail = try_imgui_x('GetContentRegionAvail');
+    if avail ~= nil then
+        x = math.max(min_x, imgui.GetCursorPosX() + avail - width);
+    else
+        local right = try_imgui_x('GetContentRegionMax') or try_imgui_x('GetWindowContentRegionMax');
+        if right ~= nil then
+            x = math.max(min_x, right - width);
+        end
+    end
+
+    imgui.SetCursorPosX(x);
     imgui.TextColored(bonus_colour, roll.bonus_text);
 end
 
